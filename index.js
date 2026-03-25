@@ -10,21 +10,18 @@ const geminiKey = process.env.GEMINI_API_KEY;
 const botUsername = process.env.BOT_USERNAME || 'espaciodigital_bot';
 
 if (!token || !geminiKey) {
-  console.error('❌ Error: Token o API Key no definidos.');
+  console.error('❌ Error: TELEGRAM_BOT_TOKEN o GEMINI_API_KEY no están definidos');
+  process.exit(1);
 }
 
 // Inicializar Telegraf y Gemini
 const bot = new Telegraf(token);
 const genAI = new GoogleGenerativeAI(geminiKey);
-const model = genAI.getGenerativeModel({ 
+const model = genAI.getGenerativeModel({
   model: 'gemini-1.5-flash',
-  systemInstruction: `Sos el asistente virtual de Espacio Digital. Tu nombre es Digi.
-  Respondés dudas sobre marketing digital, redes sociales y tecnología con lenguaje rioplatense amigable.
-  En grupos, solo respondés si te mencionan con @${botUsername}.
-  Tus respuestas deben ser cortas (máximo 5-6 líneas) y claras.`
+  systemInstruction: `Sos el asistente virtual de Espacio Digital. Tu nombre es Digi. Respondés en rioplatense (vos, che, dale) de forma corta y amigable sobre marketing y tecnología.`
 });
 
-// Historial de conversación
 const chatContexts = new Map();
 
 async function getAIResponse(chatId, userMessage) {
@@ -38,36 +35,32 @@ async function getAIResponse(chatId, userMessage) {
   return response.text();
 }
 
-bot.start((ctx) => ctx.reply('¡Hola! Soy Digi. Enviame cualquier duda sobre marketing o tecnología y te ayudo.'));
+bot.start((ctx) => ctx.reply('¡Hola! Soy Digi. Ya estoy configurado. Preguntame lo que quieras.'));
 
 bot.on('message', async (ctx) => {
   const text = ctx.message.text;
   if (!text) return;
-
   const isPrivate = ctx.chat.type === 'private';
-  const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
   const isMentioned = text.includes(`@${botUsername}`);
 
-  if (isPrivate || (isGroup && isMentioned)) {
+  if (isPrivate || isMentioned) {
     const cleanText = text.replace(`@${botUsername}`, '').trim();
+    if (!cleanText) return;
     try {
       await ctx.sendChatAction('typing');
       const aiResponse = await getAIResponse(ctx.chat.id, cleanText);
       await ctx.reply(aiResponse, { reply_to_message_id: ctx.message.message_id });
-    } catch (e) {
-      ctx.reply('😅 Ups, algo salió mal. ¡Intentá de nuevo!');
+    } catch (error) {
+      console.error('Error con Gemini:', error);
+      // Muestra el error real en Telegram para debuguear
+      await ctx.reply(`😅 Error de IA: ${error.message}`);
     }
   }
 });
 
-// Lanzar Bot
-bot.launch().then(() => console.log('✅ Bot Online'));
+bot.launch();
 
-// Servidor de salud para Render
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot Activo ✅'));
-app.listen(PORT, () => console.log(`Puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Salud en puerto ${PORT}`));
 
-// Apagado seguro
-process.once('SIGINT', () => { bot.stop('SIGINT'); process.exit(0); });
-process.once('SIGTERM', () => { bot.stop('SIGTERM'); process.exit(0); });
