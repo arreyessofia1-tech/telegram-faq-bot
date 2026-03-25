@@ -18,7 +18,7 @@ if (!token || !geminiKey) {
 const bot = new Telegraf(token);
 const genAI = new GoogleGenerativeAI(geminiKey);
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
+  model: 'gemini-pro',
   systemInstruction: `Sos el asistente virtual de Espacio Digital. Tu nombre es Digi. Respondés en rioplatense (vos, che, dale) de forma corta y amigable sobre marketing y tecnología.`
 });
 
